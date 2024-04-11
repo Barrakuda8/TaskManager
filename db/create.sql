@@ -1,17 +1,25 @@
 DROP TABLE IF EXISTS admins;
+DROP TABLE IF EXISTS teams;
 DROP TABLE IF EXISTS supports;
 DROP TABLE IF EXISTS requests;
+DROP TABLE IF EXISTS completed_chat;
 DROP TYPE IF EXISTS request_status;
-CREATE TYPE request_status AS ENUM ('created', 'completed', 'canceled');
+CREATE TYPE request_status AS ENUM ('created', 'started', 'completed', 'canceled');
 
 CREATE TABLE admins (
     id BIGINT PRIMARY KEY NOT NULL UNIQUE,
     name VARCHAR(32)
 );
 
+CREATE TABLE teams (
+    name VARCHAR(32) PRIMARY KEY UNIQUE
+);
+
 CREATE TABLE supports (
-    id BIGINT PRIMARY KEY NOT NULL UNIQUE,
-    username VARCHAR(32)
+    id BIGINT NOT NULL,
+    username VARCHAR(32) PRIMARY KEY UNIQUE,
+    team VARCHAR(32),
+    lead_id BIGINT NULL
 );
 
 CREATE TABLE requests (
@@ -22,6 +30,11 @@ CREATE TABLE requests (
     chat BIGINT,
     status request_status DEFAULT 'created',
     created_at TIMESTAMP DEFAULT (timezone('Europe/Moscow', now())),
+    started_at TIMESTAMP NULL,
     completed_at TIMESTAMP NULL
 );
+
+CREATE TABLE completed_chat (
+    id BIGINT PRIMARY KEY NOT NULL UNIQUE
+)
 
