@@ -24,45 +24,65 @@ class DoubleParamCallbackData(CallbackData, prefix='double'):
     second: str
 
 
-async def get_support_request_menu(request, is_started):
-    menu = [[InlineKeyboardButton(text='Выполнен',
-                                  callback_data=IdCallbackData(action='complete_request_confirm',
-                                                               id=request).pack())],
-            [InlineKeyboardButton(text='Отменён',
-                                  callback_data=IdCallbackData(action='cancel_request_confirm',
-                                                               id=request).pack())]]
-    if not is_started:
-        menu.insert(1, [InlineKeyboardButton(text='Принят в работу', callback_data=IdCallbackData(
-            action='start_request_confirm',
-            id=request).pack())])
+async def get_support_request_menu(request, status, english):
+    if status == 'created':
+        menu = [[InlineKeyboardButton(text='In progress' if english else 'Принят в работу',
+                                      callback_data=IdCallbackData(action='start_request_confirm',
+                                                                   id=request).pack())]]
+    else:
+        menu = [[InlineKeyboardButton(text='Delayed' if english else 'Отложен',
+                                      callback_data=IdCallbackData(action='delay_request_confirm',
+                                                                   id=request).pack())],
+                [InlineKeyboardButton(text='Completed' if english else 'Выполнен',
+                                      callback_data=IdCallbackData(action='complete_request_confirm',
+                                                                   id=request).pack())],
+                [InlineKeyboardButton(text='Canceled' if english else 'Отменён',
+                                      callback_data=IdCallbackData(action='cancel_request_confirm',
+                                                                   id=request).pack())]]
+
+        if status == 'delayed':
+            menu[0] = [InlineKeyboardButton(text='In progress' if english else 'Принят в работу',
+                                            callback_data=IdCallbackData(action='start_request_confirm',
+                                                                         id=request).pack())]
+
     return InlineKeyboardMarkup(inline_keyboard=menu)
 
 
-async def get_complete_request_menu(request):
-    menu = [[InlineKeyboardButton(text='Да',
+async def get_complete_request_menu(request, english):
+    menu = [[InlineKeyboardButton(text='Yes' if english else 'Да',
                                   callback_data=IdCallbackData(action='complete_request',
                                                                id=request).pack()),
-             InlineKeyboardButton(text='Нет',
+             InlineKeyboardButton(text='No' if english else 'Нет',
                                   callback_data=IdCallbackData(action='support_request_menu',
                                                                id=request).pack())]]
     return InlineKeyboardMarkup(inline_keyboard=menu)
 
 
-async def get_cancel_request_menu(request):
-    menu = [[InlineKeyboardButton(text='Да',
+async def get_cancel_request_menu(request, english):
+    menu = [[InlineKeyboardButton(text='Yes' if english else 'Да',
                                   callback_data=IdCallbackData(action='cancel_request',
                                                                id=request).pack()),
-             InlineKeyboardButton(text='Нет',
+             InlineKeyboardButton(text='No' if english else 'Нет',
                                   callback_data=IdCallbackData(action='support_request_menu',
                                                                id=request).pack())]]
     return InlineKeyboardMarkup(inline_keyboard=menu)
 
 
-async def get_start_request_menu(request):
-    menu = [[InlineKeyboardButton(text='Да',
+async def get_start_request_menu(request, english):
+    menu = [[InlineKeyboardButton(text='Yes' if english else 'Да',
                                   callback_data=IdCallbackData(action='start_request',
                                                                id=request).pack()),
-             InlineKeyboardButton(text='Нет',
+             InlineKeyboardButton(text='No' if english else 'Нет',
+                                  callback_data=IdCallbackData(action='support_request_menu',
+                                                               id=request).pack())]]
+    return InlineKeyboardMarkup(inline_keyboard=menu)
+
+
+async def get_delay_request_menu(request, english):
+    menu = [[InlineKeyboardButton(text='Yes' if english else 'Да',
+                                  callback_data=IdCallbackData(action='delay_request',
+                                                               id=request).pack()),
+             InlineKeyboardButton(text='No' if english else 'Нет',
                                   callback_data=IdCallbackData(action='support_request_menu',
                                                                id=request).pack())]]
     return InlineKeyboardMarkup(inline_keyboard=menu)
@@ -77,7 +97,9 @@ async def get_main_menu(admin, team):
                 [InlineKeyboardButton(text='Команды',
                                       callback_data=ActionCallbackData(action='teams_menu').pack())],
                 [InlineKeyboardButton(text='Запросы',
-                                      callback_data=ActionCallbackData(action='requests_teams_menu').pack())]]
+                                      callback_data=ActionCallbackData(action='requests_teams_menu').pack())],
+                [InlineKeyboardButton(text='Отчёт',
+                                      callback_data=ActionCallbackData(action='get_requests_stats').pack())]]
     else:
         menu = [[InlineKeyboardButton(text='Запросы',
                                       callback_data=ParamCallbackData(action='requests_team_menu', param=team).pack())]]
@@ -98,7 +120,7 @@ async def get_supports_menu():
     return InlineKeyboardMarkup(inline_keyboard=menu)
 
 
-async def get_support_menu(support):
+async def get_support_menu(support, english):
     menu = [
         [InlineKeyboardButton(text='Изменить username',
                               callback_data=ParamCallbackData(action='change_support_username',
@@ -112,10 +134,37 @@ async def get_support_menu(support):
         [InlineKeyboardButton(text='Изменить Lead',
                               callback_data=ParamCallbackData(action='change_support_lead_id',
                                                               param=support).pack())],
+        [InlineKeyboardButton(text='Выключить Английский' if english == '🟢' else 'Включить Английский',
+                              callback_data=ParamCallbackData(action='change_english',
+                                                              param=support).pack())],
+        [InlineKeyboardButton(text='Рабочий график',
+                              callback_data=ParamCallbackData(action='support_schedule_menu',
+                                                              param=support).pack())],
         [InlineKeyboardButton(text='Убрать саппорта из базы',
                               callback_data=ParamCallbackData(action='remove_support_confirm',
                                                               param=support).pack())],
         [InlineKeyboardButton(text='Назад', callback_data=ActionCallbackData(action='supports_menu').pack())]
+    ]
+
+    return InlineKeyboardMarkup(inline_keyboard=menu)
+
+
+async def get_support_schedule_menu(support):
+    menu = [
+        [InlineKeyboardButton(text='Изменить начало рабочего дня',
+                              callback_data=ParamCallbackData(action='change_support_day_start',
+                                                              param=support).pack())],
+        [InlineKeyboardButton(text='Изменить конец рабочего дня',
+                              callback_data=ParamCallbackData(action='change_support_day_end',
+                                                              param=support).pack())],
+        [InlineKeyboardButton(text='Изменить выходные дни',
+                              callback_data=ParamCallbackData(action='change_support_days_off',
+                                                              param=support).pack())],
+        [InlineKeyboardButton(text='Изменить график целиком',
+                              callback_data=ParamCallbackData(action='change_support_schedule',
+                                                              param=support).pack())],
+        [InlineKeyboardButton(text='Назад', callback_data=ParamCallbackData(action='support_menu',
+                                                                            param=support).pack())]
     ]
 
     return InlineKeyboardMarkup(inline_keyboard=menu)
@@ -208,10 +257,28 @@ async def get_team_menu(team):
         [InlineKeyboardButton(text='Изменить название',
                               callback_data=ParamCallbackData(action='change_team_name',
                                                               param=team).pack())],
+        [InlineKeyboardButton(text='Уведомления',
+                              callback_data=ParamCallbackData(action='team_notification_menu',
+                                                              param=team).pack())],
         [InlineKeyboardButton(text='Удалить команду',
                               callback_data=ParamCallbackData(action='delete_team_confirm',
                                                               param=team).pack())],
         [InlineKeyboardButton(text='Назад', callback_data=ActionCallbackData(action='teams_menu').pack())]
+    ]
+
+    return InlineKeyboardMarkup(inline_keyboard=menu)
+
+
+async def get_team_notification_menu(team):
+    menu = [
+        [InlineKeyboardButton(text='Изменить время',
+                              callback_data=ParamCallbackData(action='change_team_notification_time',
+                                                              param=team).pack())],
+        [InlineKeyboardButton(text='Извенить текст',
+                              callback_data=ParamCallbackData(action='change_team_notification_text',
+                                                              param=team).pack())],
+        [InlineKeyboardButton(text='Назад', callback_data=ParamCallbackData(action='team_menu',
+                                                                            param=team).pack())]
     ]
 
     return InlineKeyboardMarkup(inline_keyboard=menu)
@@ -244,6 +311,15 @@ async def get_requests_team_menu(team, admin):
             [InlineKeyboardButton(text='В работе', callback_data=DoubleParamCallbackData(action='requests_menu',
                                                                                          first=team,
                                                                                          second='started').pack())],
+            [InlineKeyboardButton(text='Отложенные', callback_data=DoubleParamCallbackData(action='requests_menu',
+                                                                                           first=team,
+                                                                                           second='delayed').pack())],
+            [InlineKeyboardButton(text='Выполненные', callback_data=DoubleParamCallbackData(action='requests_menu',
+                                                                                            first=team,
+                                                                                            second='completed').pack())],
+            [InlineKeyboardButton(text='Отменённые', callback_data=DoubleParamCallbackData(action='requests_menu',
+                                                                                           first=team,
+                                                                                           second='canceled').pack())],
             [InlineKeyboardButton(text='Назад',
                                   callback_data=ActionCallbackData(action='requests_teams_menu'
                                                                           if admin else 'main_menu').pack())]]
@@ -262,12 +338,14 @@ async def get_requests_menu(team, status):
 
 
 async def get_request_menu(request, team, status):
-    menu = [[InlineKeyboardButton(text='Поменять исполнителя', callback_data=IdCallbackData(action='supports_select',
-                                                                                            id=request).pack())],
-            [InlineKeyboardButton(text='Назад',
+    menu = [[InlineKeyboardButton(text='Назад',
                                   callback_data=DoubleParamCallbackData(action='requests_menu',
                                                                         first=team,
                                                                         second=status).pack())]]
+    if status in ['created', 'started', 'delayed']:
+        menu.insert(0, [InlineKeyboardButton(text='Поменять исполнителя',
+                                             callback_data=IdCallbackData(action='supports_select',
+                                                                          id=request).pack())])
     return InlineKeyboardMarkup(inline_keyboard=menu)
 
 

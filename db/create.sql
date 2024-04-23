@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS supports;
 DROP TABLE IF EXISTS requests;
 DROP TABLE IF EXISTS completed_chat;
 DROP TYPE IF EXISTS request_status;
-CREATE TYPE request_status AS ENUM ('created', 'started', 'completed', 'canceled');
+CREATE TYPE requests_status AS ENUM ('created', 'started', 'completed', 'canceled', 'delayed');
 
 CREATE TABLE admins (
     id BIGINT PRIMARY KEY NOT NULL UNIQUE,
@@ -19,7 +19,11 @@ CREATE TABLE supports (
     id BIGINT NOT NULL,
     username VARCHAR(32) PRIMARY KEY UNIQUE,
     team VARCHAR(32),
-    lead_id BIGINT NULL
+    lead_id BIGINT NULL,
+    english BOOL DEFAULT FALSE,
+    day_start TIME NULL,
+    day_end TIME NULL,
+    days_off INTEGER ARRAY NULL
 );
 
 CREATE TABLE requests (
@@ -35,6 +39,8 @@ CREATE TABLE requests (
 );
 
 CREATE TABLE completed_chat (
-    id BIGINT PRIMARY KEY NOT NULL UNIQUE
+    id BIGINT PRIMARY KEY NOT NULL UNIQUE,
+    notification_time INTEGER NULL,
+    notification_text TEXT NULL
 )
 
