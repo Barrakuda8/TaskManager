@@ -383,3 +383,10 @@ async def check_request_support(request, support):
                         f"WHERE requests.id = {request} AND supports.id = {support};"))
     data = cur.fetchone()
     return data is not None
+
+
+async def get_request_status(request):
+    cur.execute(sql.SQL(f"SELECT status FROM requests "
+                        f"WHERE id = {request};"))
+    data = cur.fetchone()
+    return data[0]

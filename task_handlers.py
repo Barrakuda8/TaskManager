@@ -129,162 +129,202 @@ async def support_request_menu(callback_query, callback_data):
 @router.callback_query(kb.IdCallbackData.filter(F.action == 'start_request_confirm'))
 async def start_request_confirm(callback_query, callback_data):
     check = await db.check_request_support(callback_data.id, callback_query.message.chat.id)
-    if check:
+    status = await db.get_request_status(callback_data.id)
+    if check and status in ['created', 'delayed']:
         english = await db.get_request_english(callback_data.id)
         await callback_query.message.edit_text(texts.start_request_confirm if not english
                                                else texts.start_request_confirm_eng,
                                                reply_markup=await kb.get_start_request_menu(callback_data.id, english))
+    elif status not in ['created', 'delayed']:
+        await callback_query.message.edit_text(texts.request_outdated)
     else:
         await callback_query.message.edit_text(texts.request_support_changed)
 
 
 @router.callback_query(kb.IdCallbackData.filter(F.action == 'start_request'))
 async def start_request(callback_query, callback_data):
-    data = await db.change_status(callback_data.id, 'started')
-    bot = Bot(token=config.TASK_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    await bot.send_message(chat_id=data['chat'],
-                           text=texts.request_started.format(request=callback_data.id, buyer=data['buyer_id']))
-    await bot.session.close()
-    english = await db.get_request_english(callback_data.id)
-    if not english:
-        text = texts.request.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
-                                    status=texts.statuses['started'],
-                                    created_at=data['created_at'].replace(microsecond=0),
-                                    started_at=data['started_at'].replace(microsecond=0), completed_at='-',
-                                    text=data['text'])
-    else:
-        translator = Translator(to_lang='en', from_lang='ru')
-        text = texts.request_eng.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
-                                        status=texts.statuses_eng['started'],
+    check = await db.check_request_support(callback_data.id, callback_query.message.chat.id)
+    status = await db.get_request_status(callback_data.id)
+    if check and status in ['created', 'delayed']:
+        data = await db.change_status(callback_data.id, 'started')
+        bot = Bot(token=config.TASK_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+        await bot.send_message(chat_id=data['chat'],
+                               text=texts.request_started.format(request=callback_data.id, buyer=data['buyer_id']))
+        await bot.session.close()
+        english = await db.get_request_english(callback_data.id)
+        if not english:
+            text = texts.request.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
+                                        status=texts.statuses['started'],
                                         created_at=data['created_at'].replace(microsecond=0),
                                         started_at=data['started_at'].replace(microsecond=0), completed_at='-',
-                                        text=translator.translate(data['text']))
-    await callback_query.message.edit_text(text,
-                                           reply_markup=await kb.get_support_request_menu(callback_data.id,
-                                                                                          'started', english))
+                                        text=data['text'])
+        else:
+            translator = Translator(to_lang='en', from_lang='ru')
+            text = texts.request_eng.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
+                                            status=texts.statuses_eng['started'],
+                                            created_at=data['created_at'].replace(microsecond=0),
+                                            started_at=data['started_at'].replace(microsecond=0), completed_at='-',
+                                            text=translator.translate(data['text']))
+        await callback_query.message.edit_text(text,
+                                               reply_markup=await kb.get_support_request_menu(callback_data.id,
+                                                                                              'started', english))
+    elif status not in ['created', 'delayed']:
+        await callback_query.message.edit_text(texts.request_outdated)
+    else:
+        await callback_query.message.edit_text(texts.request_support_changed)
 
 
 @router.callback_query(kb.IdCallbackData.filter(F.action == 'complete_request_confirm'))
 async def complete_request_confirm(callback_query, callback_data):
     check = await db.check_request_support(callback_data.id, callback_query.message.chat.id)
-    if check:
+    status = await db.get_request_status(callback_data.id)
+    if check and status in ['started', 'delayed']:
         english = await db.get_request_english(callback_data.id)
         await callback_query.message.edit_text(texts.complete_request_confirm if not english
                                                else texts.complete_request_confirm_eng,
                                                reply_markup=await kb.get_complete_request_menu(callback_data.id,
                                                                                                english))
+    elif status not in ['started', 'delayed']:
+        await callback_query.message.edit_text(texts.request_outdated)
     else:
         await callback_query.message.edit_text(texts.request_support_changed)
 
 
 @router.callback_query(kb.IdCallbackData.filter(F.action == 'complete_request'))
 async def complete_request(callback_query, callback_data):
-    data = await db.change_status(callback_data.id, 'completed')
-    bot = Bot(token=config.TASK_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    await bot.send_message(chat_id=data['chat'],
-                           text=texts.request_completed.format(request=callback_data.id, buyer=data['buyer_id']))
-    await bot.session.close()
-    completed_chat = await db.get_completed_chat()
-    if completed_chat is not None:
-        await bot.send_message(chat_id=completed_chat,
-                               text=texts.request.format(request=callback_data.id, buyer=data['buyer_id'],
-                                                         support=data['support'],
-                                                         status=texts.statuses['completed'],
-                                                         created_at=data['created_at'].replace(microsecond=0),
-                                                         started_at=data['started_at'].replace(microsecond=0),
-                                                         completed_at=data['completed_at'].replace(microsecond=0),
-                                                         text=data['text']))
+    check = await db.check_request_support(callback_data.id, callback_query.message.chat.id)
+    status = await db.get_request_status(callback_data.id)
+    if check and status in ['started', 'delayed']:
+        data = await db.change_status(callback_data.id, 'completed')
+        bot = Bot(token=config.TASK_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+        await bot.send_message(chat_id=data['chat'],
+                               text=texts.request_completed.format(request=callback_data.id, buyer=data['buyer_id']))
         await bot.session.close()
-    english = await db.get_request_english(callback_data.id)
-    if not english:
-        text = texts.request.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
-                                    status=texts.statuses['completed'],
-                                    created_at=data['created_at'].replace(microsecond=0),
-                                    started_at=data['started_at'].replace(microsecond=0),
-                                    completed_at=data['completed_at'].replace(microsecond=0), text=data['text'])
-    else:
-        translator = Translator(to_lang='en', from_lang='ru')
-        text = texts.request_eng.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
-                                        status=texts.statuses_eng['completed'],
+        completed_chat = await db.get_completed_chat()
+        if completed_chat is not None:
+            await bot.send_message(chat_id=completed_chat,
+                                   text=texts.request.format(request=callback_data.id, buyer=data['buyer_id'],
+                                                             support=data['support'],
+                                                             status=texts.statuses['completed'],
+                                                             created_at=data['created_at'].replace(microsecond=0),
+                                                             started_at=data['started_at'].replace(microsecond=0),
+                                                             completed_at=data['completed_at'].replace(microsecond=0),
+                                                             text=data['text']))
+            await bot.session.close()
+        english = await db.get_request_english(callback_data.id)
+        if not english:
+            text = texts.request.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
+                                        status=texts.statuses['completed'],
                                         created_at=data['created_at'].replace(microsecond=0),
                                         started_at=data['started_at'].replace(microsecond=0),
-                                        completed_at=data['completed_at'].replace(microsecond=0),
-                                        text=translator.translate(data['text']))
-    await callback_query.message.edit_text(text)
+                                        completed_at=data['completed_at'].replace(microsecond=0), text=data['text'])
+        else:
+            translator = Translator(to_lang='en', from_lang='ru')
+            text = texts.request_eng.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
+                                            status=texts.statuses_eng['completed'],
+                                            created_at=data['created_at'].replace(microsecond=0),
+                                            started_at=data['started_at'].replace(microsecond=0),
+                                            completed_at=data['completed_at'].replace(microsecond=0),
+                                            text=translator.translate(data['text']))
+        await callback_query.message.edit_text(text)
+    elif status not in ['started', 'delayed']:
+        await callback_query.message.edit_text(texts.request_outdated)
+    else:
+        await callback_query.message.edit_text(texts.request_support_changed)
 
 
 @router.callback_query(kb.IdCallbackData.filter(F.action == 'cancel_request_confirm'))
 async def cancel_request_confirm(callback_query, callback_data):
     check = await db.check_request_support(callback_data.id, callback_query.message.chat.id)
-    if check:
+    status = await db.get_request_status(callback_data.id)
+    if check and status in ['started', 'delayed']:
         english = await db.get_request_english(callback_data.id)
         await callback_query.message.edit_text(texts.cancel_request_confirm if not english
                                                else texts.cancel_request_confirm_eng,
                                                reply_markup=await kb.get_cancel_request_menu(callback_data.id, english))
+    elif status not in ['started', 'delayed']:
+        await callback_query.message.edit_text(texts.request_outdated)
     else:
         await callback_query.message.edit_text(texts.request_support_changed)
 
 
 @router.callback_query(kb.IdCallbackData.filter(F.action == 'cancel_request'))
 async def cancel_request(callback_query, callback_data):
-    data = await db.change_status(callback_data.id, 'canceled')
-    bot = Bot(token=config.TASK_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    await bot.send_message(chat_id=data['chat'],
-                           text=texts.request_canceled.format(request=callback_data.id, buyer=data['buyer_id']))
-    await bot.session.close()
-    english = await db.get_request_english(callback_data.id)
-    if not english:
-        text = texts.request.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
-                                    status=texts.statuses['canceled'],
-                                    created_at=data['created_at'].replace(microsecond=0),
-                                    started_at=data['started_at'].replace(microsecond=0),
-                                    completed_at='-', text=data['text'])
-    else:
-        translator = Translator(to_lang='en', from_lang='ru')
-        text = texts.request_eng.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
-                                        status=texts.statuses_eng['canceled'],
+    check = await db.check_request_support(callback_data.id, callback_query.message.chat.id)
+    status = await db.get_request_status(callback_data.id)
+    if check and status in ['started', 'delayed']:
+        data = await db.change_status(callback_data.id, 'canceled')
+        bot = Bot(token=config.TASK_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+        await bot.send_message(chat_id=data['chat'],
+                               text=texts.request_canceled.format(request=callback_data.id, buyer=data['buyer_id']))
+        await bot.session.close()
+        english = await db.get_request_english(callback_data.id)
+        if not english:
+            text = texts.request.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
+                                        status=texts.statuses['canceled'],
                                         created_at=data['created_at'].replace(microsecond=0),
                                         started_at=data['started_at'].replace(microsecond=0),
-                                        completed_at='-', text=translator.translate(data['text']))
-    await callback_query.message.edit_text(text)
+                                        completed_at='-', text=data['text'])
+        else:
+            translator = Translator(to_lang='en', from_lang='ru')
+            text = texts.request_eng.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
+                                            status=texts.statuses_eng['canceled'],
+                                            created_at=data['created_at'].replace(microsecond=0),
+                                            started_at=data['started_at'].replace(microsecond=0),
+                                            completed_at='-', text=translator.translate(data['text']))
+        await callback_query.message.edit_text(text)
+    elif status not in ['started', 'delayed']:
+        await callback_query.message.edit_text(texts.request_outdated)
+    else:
+        await callback_query.message.edit_text(texts.request_support_changed)
 
 
 @router.callback_query(kb.IdCallbackData.filter(F.action == 'delay_request_confirm'))
 async def delay_request_confirm(callback_query, callback_data):
     check = await db.check_request_support(callback_data.id, callback_query.message.chat.id)
-    if check:
+    status = await db.get_request_status(callback_data.id)
+    if check and status == 'started':
         english = await db.get_request_english(callback_data.id)
         await callback_query.message.edit_text(texts.delay_request_confirm if not english
                                                else texts.delay_request_confirm_eng,
                                                reply_markup=await kb.get_delay_request_menu(callback_data.id, english))
+    elif status != 'started':
+        await callback_query.message.edit_text(texts.request_outdated)
     else:
         await callback_query.message.edit_text(texts.request_support_changed)
 
 
 @router.callback_query(kb.IdCallbackData.filter(F.action == 'delay_request'))
 async def delay_request(callback_query, callback_data):
-    data = await db.change_status(callback_data.id, 'delayed')
-    bot = Bot(token=config.TASK_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    await bot.send_message(chat_id=data['chat'],
-                           text=texts.request_delayed.format(request=callback_data.id, buyer=data['buyer_id']))
-    await bot.session.close()
-    english = await db.get_request_english(callback_data.id)
-    if not english:
-        text = texts.request.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
-                                    status=texts.statuses['delayed'],
-                                    created_at=data['created_at'].replace(microsecond=0),
-                                    started_at=data['started_at'].replace(microsecond=0),
-                                    completed_at='-', text=data['text'])
-    else:
-        translator = Translator(to_lang='en', from_lang='ru')
-        text = texts.request_eng.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
-                                        status=texts.statuses_eng['delayed'],
+    check = await db.check_request_support(callback_data.id, callback_query.message.chat.id)
+    status = await db.get_request_status(callback_data.id)
+    if check and status == 'started':
+        data = await db.change_status(callback_data.id, 'delayed')
+        bot = Bot(token=config.TASK_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+        await bot.send_message(chat_id=data['chat'],
+                               text=texts.request_delayed.format(request=callback_data.id, buyer=data['buyer_id']))
+        await bot.session.close()
+        english = await db.get_request_english(callback_data.id)
+        if not english:
+            text = texts.request.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
+                                        status=texts.statuses['delayed'],
                                         created_at=data['created_at'].replace(microsecond=0),
                                         started_at=data['started_at'].replace(microsecond=0),
-                                        completed_at='-', text=translator.translate(data['text']))
-    await callback_query.message.edit_text(text,
-                                           reply_markup=await kb.get_support_request_menu(callback_data.id,
-                                                                                          'delayed', english))
+                                        completed_at='-', text=data['text'])
+        else:
+            translator = Translator(to_lang='en', from_lang='ru')
+            text = texts.request_eng.format(request=callback_data.id, buyer=data['buyer_id'], support=data['support'],
+                                            status=texts.statuses_eng['delayed'],
+                                            created_at=data['created_at'].replace(microsecond=0),
+                                            started_at=data['started_at'].replace(microsecond=0),
+                                            completed_at='-', text=translator.translate(data['text']))
+        await callback_query.message.edit_text(text,
+                                               reply_markup=await kb.get_support_request_menu(callback_data.id,
+                                                                                              'delayed', english))
+    elif status != 'started':
+        await callback_query.message.edit_text(texts.request_outdated)
+    else:
+        await callback_query.message.edit_text(texts.request_support_changed)
 
 
 @router.message(Command("start"))
